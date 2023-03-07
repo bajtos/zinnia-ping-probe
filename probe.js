@@ -1,4 +1,7 @@
 const INFLUXDB_API_KEY = "FILL ME IN!";
+const INFLUXDB_ORG_ID = "FILL ME IN!";
+const INFLUXDB_BUCKET = "FILL ME IN!";
+const INFLUXDB_ENDPOINT = "https://eu-central-1-1.aws.cloud2.influxdata.com/";
 
 // List of peers to ping
 const PEERS = [
@@ -30,18 +33,19 @@ async function probe(peer) {
 }
 
 async function record({ peer, started, duration }) {
-  const res = await fetch(
-    "https://eu-central-1-1.aws.cloud2.influxdata.com/api/v2/write?org=1ccca9b7fbbf257d&bucket=zinnia-demo&precision=ms",
-    {
-      method: "POST",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Token ${INFLUXDB_API_KEY}`,
-        "Content-Type": "text/plain; charset=utf-8",
-      },
-      body: `ping_rtt,peer=${peer} rtt=${duration}u ${started}\n`,
+  const request_url = new URL("/api/v2/write", INFLUXDB_ENDPOINT);
+  request_url.searchParams.set("org", INFLUXDB_ORG_ID);
+  request_url.searchParams.set("bucket", INFLUXDB_BUCKET);
+  request_url.searchParams.set("precision", "ms");
+  const res = await fetch(request_url, {
+    method: "POST",
+    headers: {
+      Accept: "application/json",
+      Authorization: `Token ${INFLUXDB_API_KEY}`,
+      "Content-Type": "text/plain; charset=utf-8",
     },
-  );
+    body: `ping_rtt,peer=${peer} rtt=${duration}u ${started}\n`,
+  });
   if (!res.ok) {
     throw new Error(`InfluxDB API error ${res.status}\n${await res.text()}`);
   }
