@@ -1,3 +1,5 @@
+const INFLUXDB_API_KEY = "FILL ME IN!";
+
 // List of peers to ping
 const PEERS = [
   // Punchr bootstrap nodes
@@ -24,7 +26,25 @@ async function probe(peer) {
   const started = Date.now();
   await Zinnia.requestProtocol(peer, "/ipfs/ping/1.0.0", requestPayload);
   const duration = Date.now() - started;
-  console.log("RTT: %sms", duration);
+  return { started, duration };
+}
+
+async function record({ peer, started, duration }) {
+  const res = await fetch(
+    "https://eu-central-1-1.aws.cloud2.influxdata.com/api/v2/write?org=1ccca9b7fbbf257d&bucket=zinnia-demo&precision=ms",
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Token ${INFLUXDB_API_KEY}`,
+        "Content-Type": "text/plain; charset=utf-8",
+      },
+      body: `ping_rtt,peer=${peer} rtt=${duration}u ${started}\n`,
+    },
+  );
+  if (!res.ok) {
+    throw new Error(`InfluxDB API error ${res.status}\n${await res.text()}`);
+  }
 }
 
 function sleep(durationInMs) {
@@ -33,11 +53,23 @@ function sleep(durationInMs) {
 
 while (true) {
   const peer = PEERS[Math.floor(Math.random() * PEERS.length)];
-  console.log("Pinging %s", peer);
+
+  let pingResult;
+
   try {
-    await probe(peer);
+    console.log("Pinging %s", peer);
+    pingResult = await probe(peer);
+    console.log("RTT: %sms", pingResult.duration);
   } catch (err) {
     console.error("Cannot ping %s: %s", peer, err);
   }
+
+  try {
+    await record({ peer, ...pingResult });
+    console.log("Submitted stats to InfluxDB.");
+  } catch (err) {
+    console.error("Cannot record stats: %s", err);
+  }
+
   await sleep(1000);
 }
