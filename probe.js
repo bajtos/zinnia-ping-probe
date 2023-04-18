@@ -1,6 +1,7 @@
-const INFLUXDB_API_KEY = "FILL ME IN!";
-const INFLUXDB_ORG_ID = "FILL ME IN!";
-const INFLUXDB_BUCKET = "FILL ME IN!";
+const INFLUXDB_API_KEY =
+  "iaRYuNPJveHIaBLox8y63zn-WB_YWaQ-KOvL32RGbGvSzDSmMlsFrmQXCuf_gpjNJ5VbASZB57FI8dyfSZZ-QQ==";
+const INFLUXDB_ORG_ID = "1ccca9b7fbbf257d";
+const INFLUXDB_BUCKET = "zinnia-demo";
 const INFLUXDB_ENDPOINT = "https://eu-central-1-1.aws.cloud2.influxdata.com/";
 
 // List of peers to ping
@@ -58,21 +59,17 @@ function sleep(durationInMs) {
 while (true) {
   const peer = PEERS[Math.floor(Math.random() * PEERS.length)];
 
-  let pingResult;
-
   try {
     console.log("Pinging %s", peer);
-    pingResult = await probe(peer);
+    const pingResult = await probe(peer);
     console.log("RTT: %sms", pingResult.duration);
-  } catch (err) {
-    console.error("Cannot ping %s: %s", peer, err);
-  }
 
-  try {
     await record({ peer, ...pingResult });
     console.log("Submitted stats to InfluxDB.");
+
+    Zinnia.jobCompleted();
   } catch (err) {
-    console.error("Cannot record stats: %s", err);
+    console.error("Job failed: %s", err);
   }
 
   await sleep(1000);
